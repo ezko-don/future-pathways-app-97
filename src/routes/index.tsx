@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import heroImg from "@/assets/hero.jpg";
+import { useSession } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -127,6 +128,7 @@ export default function Landing() {
 }
 
 function Header() {
+  const { user, loading } = useSession();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -142,13 +144,25 @@ function Header() {
           <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition">Roadmap</a>
           <a href="#waitlist" className="text-muted-foreground hover:text-foreground transition">Waitlist</a>
         </nav>
-        <a
-          href="#waitlist"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
-        >
-          Join waitlist
-          <span aria-hidden>→</span>
-        </a>
+        {loading ? (
+          <span className="h-9 w-24 animate-pulse rounded-full bg-secondary" />
+        ) : user ? (
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+          >
+            Dashboard
+            <span aria-hidden>→</span>
+          </Link>
+        ) : (
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+          >
+            Sign in
+            <span aria-hidden>→</span>
+          </Link>
+        )}
       </div>
     </header>
   );
