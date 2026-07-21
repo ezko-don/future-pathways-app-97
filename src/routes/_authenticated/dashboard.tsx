@@ -1,6 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
+import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -13,15 +15,62 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+interface StoredReport extends QuizReportData {
+  id: string;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useSession();
   const { role, loading: roleLoading } = useRole(user?.id);
   const profile = useProfile(user?.id);
+  const [report, setReport] = useState<StoredReport | null>(null);
+  const [loadingReport, setLoadingReport] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setLoadingReport(true);
+    supabase
+      .from("quiz_results")
+      .select("id, top_cluster, summary, strengths, pathways, next_steps, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) {
+          setReport({
+            id: data.id,
+            top_cluster: data.top_cluster,
+            summary: data.summary,
+            strengths: data.strengths as string[],
+            pathways: data.pathways as QuizReportData["pathways"],
+            next_steps: data.next_steps as string[],
+            created_at: data.created_at,
+          });
+        } else {
+          setReport(null);
+        }
+        setLoadingReport(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   async function signOut() {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
+  }
+
+  function handleDownload() {
+    if (!report) return;
+    downloadReportPdf(
+      { ...report, learner_name: profile?.full_name ?? undefined },
+      `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
+    );
   }
 
   const displayName = profile?.full_name || user?.email || "there";
@@ -67,9 +116,15 @@ function Dashboard() {
               : "Your CBC career journey starts here."}
         </h1>
 
+        <ReportPanel
+          loading={loadingReport}
+          report={report}
+          onDownload={handleDownload}
+        />
+
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {role === "parent" && <ParentCards />}
-          {role === "student" && <StudentCards />}
+          {role === "student" && <StudentCards hasReport={!!report} />}
           {role === "admin" && <AdminCards />}
           {!role && !roleLoading && (
             <div className="col-span-full rounded-2xl border border-dashed border-border p-8 text-sm text-muted-foreground">
@@ -78,6 +133,93 @@ function Dashboard() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function ReportPanel({
+  loading,
+  report,
+  onDownload,
+}: {
+  loading: boolean;
+  report: StoredReport | null;
+  onDownload: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-8 h-40 animate-pulse rounded-3xl border border-border bg-card" />
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-lift">
+        <div className="grid gap-6 p-8 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-clay">
+              Start here
+            </p>
+            <h2 className="mt-2 font-display text-2xl font-bold">
+              Take the AI Navigator quiz
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              6 quick questions. Get a personalised CBC pathway report with
+              Kenyan career matches — ready to download as a PDF.
+            </p>
+          </div>
+          <Link
+            to="/quiz"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+          >
+            Start the quiz →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-lift">
+      <div className="gradient-earth px-8 py-6 text-cream">
+        <p className="text-xs font-semibold uppercase tracking-widest opacity-80">
+          Your top cluster
+        </p>
+        <h2 className="mt-1 font-display text-3xl font-bold">{report.top_cluster}</h2>
+      </div>
+      <div className="grid gap-6 p-8 md:grid-cols-[1fr_auto] md:items-start">
+        <div className="space-y-4">
+          <p className="text-sm text-foreground/80">{report.summary}</p>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Recommended pathways
+            </p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {report.pathways.map((p) => (
+                <li key={p.title}>
+                  <span className="font-semibold">{p.title}</span>{" "}
+                  <span className="text-muted-foreground">— {p.cbc_track}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 md:w-52">
+          <button
+            type="button"
+            onClick={onDownload}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+          >
+            ⬇ Download PDF
+          </button>
+          <Link
+            to="/quiz"
+            className="inline-flex items-center justify-center rounded-full border border-border bg-background px-5 py-2 text-xs font-semibold hover:bg-secondary"
+          >
+            Retake the quiz
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -102,10 +244,14 @@ function ParentCards() {
   );
 }
 
-function StudentCards() {
+function StudentCards({ hasReport }: { hasReport: boolean }) {
   return (
     <>
-      <Card tag="Start here" title="Take the AI Navigator quiz" body="15 minutes. Map your strengths to three CBC pathways." />
+      <Card
+        tag="Start here"
+        title={hasReport ? "Retake the AI Navigator quiz" : "Take the AI Navigator quiz"}
+        body="6 quick questions. Map your strengths to three CBC pathways."
+      />
       <Card tag="Play" title="Enter the Career Arena" body="Day-in-the-life simulations. Earn badges. Level up your future." />
       <Card tag="Shadow" title="Watch a masterclass" body="Meet real Kenyan professionals. Complete their challenge to earn a portfolio entry." />
     </>
