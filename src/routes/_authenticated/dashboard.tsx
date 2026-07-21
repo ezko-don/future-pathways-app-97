@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 
+function confirmRetake(): boolean {
+  return window.confirm(
+    "Start a new quiz attempt? Your current report stays in your history as a separate version.",
+  );
+}
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
@@ -90,6 +96,12 @@ function Dashboard() {
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground md:inline">{user?.email}</span>
+            <Link
+              to="/history"
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
+            >
+              History
+            </Link>
             <button
               onClick={signOut}
               className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
@@ -214,9 +226,18 @@ function ReportPanel({
           </button>
           <Link
             to="/quiz"
+            onClick={(e) => {
+              if (!confirmRetake()) e.preventDefault();
+            }}
             className="inline-flex items-center justify-center rounded-full border border-border bg-background px-5 py-2 text-xs font-semibold hover:bg-secondary"
           >
             Retake the quiz
+          </Link>
+          <Link
+            to="/history"
+            className="inline-flex items-center justify-center rounded-full border border-transparent px-5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            View all attempts →
           </Link>
         </div>
       </div>
