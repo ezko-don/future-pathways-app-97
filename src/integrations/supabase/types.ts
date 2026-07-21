@@ -38,6 +38,45 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_results: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          next_steps: Json
+          pathways: Json
+          strengths: Json
+          summary: string
+          top_cluster: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          created_at?: string
+          id?: string
+          next_steps: Json
+          pathways: Json
+          strengths: Json
+          summary: string
+          top_cluster: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          next_steps?: Json
+          pathways?: Json
+          strengths?: Json
+          summary?: string
+          top_cluster?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
