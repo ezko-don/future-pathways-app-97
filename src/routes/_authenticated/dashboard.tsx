@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 
+function confirmRetake(): boolean {
+  return window.confirm(
+    "Start a new quiz attempt? Your current report stays in your history as a separate version.",
+  );
+}
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
