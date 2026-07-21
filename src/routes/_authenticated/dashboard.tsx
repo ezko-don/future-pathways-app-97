@@ -96,6 +96,12 @@ function Dashboard() {
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground md:inline">{user?.email}</span>
+            <Link
+              to="/history"
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
+            >
+              History
+            </Link>
             <button
               onClick={signOut}
               className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
