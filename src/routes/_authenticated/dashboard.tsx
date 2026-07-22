@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
 function confirmRetake(): boolean {
   return window.confirm(
