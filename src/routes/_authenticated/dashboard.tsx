@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
 function confirmRetake(): boolean {
   return window.confirm(
@@ -79,6 +80,52 @@ function Dashboard() {
     );
   }
 
+  function handleWhatsApp() {
+    if (!report) return;
+    const msg = buildWhatsAppMessage(report, profile?.full_name ?? undefined);
+    const phone = window.prompt(
+      "Enter your parent/guardian's WhatsApp number (with country code, e.g. 2547XXXXXXXX). Leave blank to pick a contact in WhatsApp.",
+      "",
+    );
+    if (phone === null) return;
+    openWhatsAppShare(msg, phone.trim() || undefined);
+  }
+
+  function handleEmail() {
+    if (!report) return;
+    const to = window.prompt(
+      "Send the report summary to which email? (yours or your guardian's)",
+      user?.email ?? "",
+    );
+    if (!to) return;
+    const subject = encodeURIComponent(`KaziFuture Career Report — ${report.top_cluster}`);
+    const lines = [
+      `Hi,`,
+      ``,
+      `${profile?.full_name ?? "A KaziFuture learner"} completed the AI Career Navigator quiz.`,
+      ``,
+      `Top cluster: ${report.top_cluster}`,
+      ``,
+      report.summary,
+      ``,
+      `Recommended CBC pathways:`,
+      ...report.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track}) — ${p.why_fit}`),
+      ``,
+      `Next steps:`,
+      ...report.next_steps.map((s) => `  • ${s}`),
+      ``,
+      `The full branded PDF can be downloaded from the KaziFuture dashboard.`,
+      `— KaziFuture`,
+    ].join("\n");
+    const body = encodeURIComponent(lines);
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+    // Also trigger the PDF download so it can be attached from the mail client.
+    downloadReportPdf(
+      { ...report, learner_name: profile?.full_name ?? undefined },
+      `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
+    );
+  }
+
   const displayName = profile?.full_name || user?.email || "there";
 
   return (
@@ -132,6 +179,8 @@ function Dashboard() {
           loading={loadingReport}
           report={report}
           onDownload={handleDownload}
+          onWhatsApp={handleWhatsApp}
+          onEmail={handleEmail}
         />
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -153,10 +202,14 @@ function ReportPanel({
   loading,
   report,
   onDownload,
+  onWhatsApp,
+  onEmail,
 }: {
   loading: boolean;
   report: StoredReport | null;
   onDownload: () => void;
+  onWhatsApp: () => void;
+  onEmail: () => void;
 }) {
   if (loading) {
     return (
@@ -224,6 +277,26 @@ function ReportPanel({
           >
             ⬇ Download PDF
           </button>
+          <button
+            type="button"
+            onClick={onWhatsApp}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
+          >
+            💬 Share on WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={onEmail}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2 text-xs font-semibold hover:bg-secondary"
+          >
+            ✉ Email this report
+          </button>
+          <Link
+            to="/compare"
+            className="inline-flex items-center justify-center rounded-full border border-transparent px-5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            Compare versions →
+          </Link>
           <Link
             to="/quiz"
             onClick={(e) => {

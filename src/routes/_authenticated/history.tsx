@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -68,6 +69,46 @@ function HistoryPage() {
     );
   }
 
+  function handleWhatsApp(a: Attempt) {
+    const msg = buildWhatsAppMessage(a, profile?.full_name ?? undefined);
+    const phone = window.prompt(
+      "Enter your parent/guardian's WhatsApp number (with country code). Leave blank to pick a contact in WhatsApp.",
+      "",
+    );
+    if (phone === null) return;
+    openWhatsAppShare(msg, phone.trim() || undefined);
+  }
+
+  function handleEmail(a: Attempt, version: number) {
+    const to = window.prompt(
+      "Send this attempt's summary to which email?",
+      user?.email ?? "",
+    );
+    if (!to) return;
+    const subject = encodeURIComponent(`KaziFuture Career Report v${version} — ${a.top_cluster}`);
+    const body = encodeURIComponent(
+      [
+        `Hi,`,
+        ``,
+        `${profile?.full_name ?? "A KaziFuture learner"} — attempt v${version}.`,
+        ``,
+        `Top cluster: ${a.top_cluster}`,
+        ``,
+        a.summary,
+        ``,
+        `Pathways:`,
+        ...a.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track})`),
+        ``,
+        `Next steps:`,
+        ...a.next_steps.map((s) => `  • ${s}`),
+        ``,
+        `Full PDF downloaded from your KaziFuture dashboard.`,
+      ].join("\n"),
+    );
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+    handleDownload(a, version);
+  }
+
   return (
     <div className="min-h-screen bg-background bg-grain">
       <header className="border-b border-border/60 bg-background/80 backdrop-blur">
@@ -75,13 +116,21 @@ function HistoryPage() {
           <Link to="/dashboard" className="text-sm font-semibold hover:underline">
             ← Back to dashboard
           </Link>
-          <button
-            type="button"
-            onClick={handleRetake}
-            className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-lift hover:opacity-95"
-          >
-            Retake quiz
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/compare"
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
+            >
+              Compare
+            </Link>
+            <button
+              type="button"
+              onClick={handleRetake}
+              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-lift hover:opacity-95"
+            >
+              Retake quiz
+            </button>
+          </div>
         </div>
       </header>
 
@@ -156,6 +205,20 @@ function HistoryPage() {
                       className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
                     >
                       {isOpen ? "Hide details" : "View details"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleWhatsApp(a)}
+                      className="rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-95"
+                    >
+                      💬 WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEmail(a, version)}
+                      className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
+                    >
+                      ✉ Email
                     </button>
                     <button
                       type="button"
