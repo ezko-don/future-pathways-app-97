@@ -208,6 +208,20 @@ function HistoryPage() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleWhatsApp(a)}
+                      className="rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-95"
+                    >
+                      💬 WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEmail(a, version)}
+                      className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
+                    >
+                      ✉ Email
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDownload(a, version)}
                       className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lift hover:opacity-95"
                     >
