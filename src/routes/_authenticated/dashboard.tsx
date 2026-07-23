@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
+import { useReportEntitlement } from "@/hooks/useReportEntitlement";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { ClusterReportPaywall } from "@/components/ClusterReportPaywall";
 
 function confirmRetake(): boolean {
   return window.confirm(
@@ -32,6 +34,7 @@ function Dashboard() {
   const profile = useProfile(user?.id);
   const [report, setReport] = useState<StoredReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(true);
+  const { unlocked, loading: loadingEntitlement, refetch: refetchEntitlement } = useReportEntitlement(report?.id);
 
   useEffect(() => {
     if (!user) return;
@@ -132,6 +135,9 @@ function Dashboard() {
           loading={loadingReport}
           report={report}
           onDownload={handleDownload}
+          unlocked={unlocked}
+          loadingEntitlement={loadingEntitlement}
+          onUnlocked={refetchEntitlement}
         />
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -153,10 +159,16 @@ function ReportPanel({
   loading,
   report,
   onDownload,
+  unlocked,
+  loadingEntitlement,
+  onUnlocked,
 }: {
   loading: boolean;
   report: StoredReport | null;
   onDownload: () => void;
+  unlocked: boolean;
+  loadingEntitlement: boolean;
+  onUnlocked: () => void;
 }) {
   if (loading) {
     return (
@@ -217,13 +229,15 @@ function ReportPanel({
           </div>
         </div>
         <div className="flex flex-col gap-2 md:w-52">
-          <button
-            type="button"
-            onClick={onDownload}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
-          >
-            ⬇ Download PDF
-          </button>
+          {!loadingEntitlement && unlocked && (
+            <button
+              type="button"
+              onClick={onDownload}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+            >
+              ⬇ Download PDF
+            </button>
+          )}
           <Link
             to="/quiz"
             onClick={(e) => {
@@ -241,6 +255,12 @@ function ReportPanel({
           </Link>
         </div>
       </div>
+
+      {!loadingEntitlement && !unlocked && (
+        <div className="border-t border-border p-8">
+          <ClusterReportPaywall quizResultId={report.id} onUnlocked={onUnlocked} />
+        </div>
+      )}
     </div>
   );
 }

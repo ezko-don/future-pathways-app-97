@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      payments: {
+        Row: {
+          amount_kes: number
+          checkout_request_id: string | null
+          created_at: string
+          id: string
+          merchant_request_id: string | null
+          mpesa_receipt: string | null
+          phone_number: string
+          purpose: Database["public"]["Enums"]["payment_purpose"]
+          quiz_result_id: string | null
+          result_desc: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_kes: number
+          checkout_request_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_request_id?: string | null
+          mpesa_receipt?: string | null
+          phone_number: string
+          purpose: Database["public"]["Enums"]["payment_purpose"]
+          quiz_result_id?: string | null
+          result_desc?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_kes?: number
+          checkout_request_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_request_id?: string | null
+          mpesa_receipt?: string | null
+          phone_number?: string
+          purpose?: Database["public"]["Enums"]["payment_purpose"]
+          quiz_result_id?: string | null
+          result_desc?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_quiz_result_id_fkey"
+            columns: ["quiz_result_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -37,6 +93,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string
+          id: string
+          payment_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end: string
+          id?: string
+          payment_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string
+          id?: string
+          payment_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quiz_results: {
         Row: {
@@ -113,6 +210,10 @@ export type Database = {
     }
     Enums: {
       app_role: "parent" | "student" | "admin"
+      payment_purpose: "cluster_report" | "subscription" | "kit_order"
+      payment_status: "pending" | "success" | "failed"
+      subscription_status: "active" | "expired" | "cancelled"
+      subscription_tier: "monthly" | "annual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -241,6 +342,10 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["parent", "student", "admin"],
+      payment_purpose: ["cluster_report", "subscription", "kit_order"],
+      payment_status: ["pending", "success", "failed"],
+      subscription_status: ["active", "expired", "cancelled"],
+      subscription_tier: ["monthly", "annual"],
     },
   },
 } as const

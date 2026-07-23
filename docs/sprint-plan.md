@@ -22,15 +22,17 @@ before each sprint starts.
 **Not yet done from the original Sprint 1 scope**: M-Pesa STK Push paywall
 on the full report. Carried into Sprint 2.
 
-## Sprint 2 — Monetize the Navigator
+## Sprint 2 — Monetize the Navigator (code complete, sandbox test pending)
 **Goal**: the one-time "Cluster Report" paywall works end-to-end (KES 350).
-- [ ] `payments` + `subscriptions` tables (see [database.md](./database.md))
-- [ ] M-Pesa Daraja integration: STK Push initiate + callback server functions
-- [ ] Gate full-report PDF/detail behind a successful payment or active
+- [x] `payments` + `subscriptions` tables (see [database.md](./database.md))
+- [x] M-Pesa Daraja integration: STK Push initiate + callback server functions
+- [x] Gate full-report PDF/detail behind a successful payment or active
       subscription; free tier keeps summary-only view
-- [ ] Basic parent-facing billing state in the dashboard
+- [x] Basic parent-facing billing state in the dashboard
 - **Exit criteria**: a real M-Pesa sandbox payment unlocks a report PDF for
-  a test account.
+  a test account. **Not yet verified** — needs real Daraja sandbox
+  credentials and a public callback URL (see [api.md](./api.md)) before this
+  can be exercised end-to-end.
 
 ## Sprint 3 — WhatsApp extension (fastest path to distribution)
 **Goal**: validate engagement cheaply before investing in heavy game UI.

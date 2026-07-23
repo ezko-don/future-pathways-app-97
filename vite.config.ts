@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // Lets the M-Pesa Daraja sandbox reach the local dev server via an ngrok
+      // tunnel during Sprint 2 payment testing. Dev-only.
+      allowedHosts: [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.io"],
+    },
+  },
 });

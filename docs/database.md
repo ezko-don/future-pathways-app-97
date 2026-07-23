@@ -55,6 +55,52 @@ One row per completed AI Navigator quiz submission.
 
 RLS: owner-only, full CRUD (`auth.uid() = user_id`).
 
+### `public.payment_purpose` / `public.payment_status` / `public.subscription_tier` / `public.subscription_status` (enums)
+`payment_purpose`: `'cluster_report' | 'subscription' | 'kit_order'`
+`payment_status`: `'pending' | 'success' | 'failed'`
+`subscription_tier`: `'monthly' | 'annual'`
+`subscription_status`: `'active' | 'expired' | 'cancelled'`
+
+### `public.payments`
+One row per M-Pesa Daraja STK Push attempt.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `user_id` | uuid FK → `auth.users.id`, cascade delete | |
+| `quiz_result_id` | uuid FK → `quiz_results.id`, nullable, `ON DELETE SET NULL` | which report this unlocks, for `purpose = 'cluster_report'` |
+| `purpose` | `payment_purpose` | |
+| `amount_kes` | integer | |
+| `phone_number` | text | normalized `2547XXXXXXXX` |
+| `status` | `payment_status` | default `'pending'` |
+| `mpesa_receipt` | text | set by the callback on success |
+| `merchant_request_id` / `checkout_request_id` | text | Daraja correlation IDs; `checkout_request_id` is how the callback finds the row and is never returned to any client-facing server function |
+| `result_desc` | text | Daraja's human-readable result |
+| `created_at` / `updated_at` | timestamptz | |
+
+RLS: owner-only `SELECT`. No client `INSERT`/`UPDATE`/`DELETE` policy —
+every write happens via `supabaseAdmin` (service role) inside
+`initiateClusterReportUnlock` (insert pending row, then merchant/checkout
+IDs) or the `mpesa-callback` webhook (final status), mirroring the
+`user_roles` privilege-escalation guard.
+
+### `public.subscriptions`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `user_id` | uuid FK → `auth.users.id`, cascade delete | |
+| `tier` | `subscription_tier` | |
+| `status` | `subscription_status` | default `'active'` |
+| `current_period_end` | timestamptz | |
+| `payment_id` | uuid FK → `payments.id`, nullable | |
+| `created_at` / `updated_at` | timestamptz | |
+
+RLS: owner-only `SELECT`, same service-role-only write pattern as
+`payments`. Not yet written to by any server function — the schema and
+entitlement check (`getReportEntitlement`) support an active subscription
+unlocking reports, but the subscription purchase flow itself is future
+work (recurring billing is out of scope for Sprint 2's one-time paywall).
+
 ### Shared functions/triggers
 - `has_role(_user_id, _role)` — `SECURITY DEFINER`, `STABLE`; used to check
   roles without exposing `user_roles` to broader read access. Execute
@@ -73,38 +119,17 @@ RLS: owner-only, full CRUD (`auth.uid() = user_id`).
 auth.users (Supabase managed)
    │ 1:1
    ▼
-profiles ──────────────┐
-   │ 1:N (via user_id)  │ 1:N (via user_id)
-   ▼                    ▼
-user_roles          quiz_results
+profiles ──────────────┬──────────────────┬──────────────────┐
+   │ 1:N (via user_id)  │ 1:N (via user_id) │ 1:N (via user_id) │ 1:N (via user_id)
+   ▼                    ▼                  ▼                  ▼
+user_roles          quiz_results ◄── payments ──► subscriptions
+                     (quiz_result_id,    (payment_id,
+                      nullable)           nullable)
 ```
 
 ## 2. Proposed Schema — Planned Modules
 
 Not yet migrated. Documented here to align implementation before build.
-
-### Payments (`subscriptions`, `payments`) — for FR-6
-```
-subscriptions
-  id uuid PK
-  user_id uuid FK -> auth.users
-  tier text            -- 'free' | 'monthly' | 'termly'
-  status text           -- 'active' | 'expired' | 'cancelled'
-  current_period_end timestamptz
-  created_at / updated_at
-
-payments
-  id uuid PK
-  user_id uuid FK -> auth.users
-  purpose text          -- 'cluster_report' | 'subscription' | 'kit_order'
-  amount_kes integer
-  mpesa_receipt text
-  status text            -- 'pending' | 'success' | 'failed'
-  created_at
-```
-RLS: owner-only read; writes only via a service-role server function that
-handles the M-Pesa Daraja callback (never trust a client to mark its own
-payment "success").
 
 ### Career Arena — for FR-7/FR-8
 ```

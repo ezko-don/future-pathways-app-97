@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
+import { useReportEntitlement } from "@/hooks/useReportEntitlement";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { ClusterReportPaywall } from "@/components/ClusterReportPaywall";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -116,114 +118,137 @@ function HistoryPage() {
             </div>
           )}
 
-          {attempts?.map((a, idx) => {
-            const version = attempts.length - idx;
-            const isLatest = idx === 0;
-            const isOpen = expanded === a.id;
-            const date = new Date(a.created_at).toLocaleString("en-KE", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            });
-            return (
-              <article
-                key={a.id}
-                className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4 p-6">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold">
-                        v{version}
-                      </span>
-                      {isLatest && (
-                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                          Latest
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">{date}</span>
-                    </div>
-                    <h2 className="mt-2 font-display text-xl font-bold">
-                      {a.top_cluster}
-                    </h2>
-                    <p className="mt-1 max-w-xl text-sm text-muted-foreground line-clamp-2">
-                      {a.summary}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(isOpen ? null : a.id)}
-                      className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
-                    >
-                      {isOpen ? "Hide details" : "View details"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(a, version)}
-                      className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lift hover:opacity-95"
-                    >
-                      ⬇ Download PDF
-                    </button>
-                  </div>
-                </div>
-
-                {isOpen && (
-                  <div className="border-t border-border bg-background/40 p-6">
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Strengths
-                        </p>
-                        <ul className="mt-2 space-y-1 text-sm">
-                          {a.strengths.map((s) => (
-                            <li key={s}>• {s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Next steps
-                        </p>
-                        <ul className="mt-2 space-y-1 text-sm">
-                          {a.next_steps.map((s) => (
-                            <li key={s}>• {s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="mt-6">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Pathways
-                      </p>
-                      <ul className="mt-2 space-y-3 text-sm">
-                        {a.pathways.map((p) => (
-                          <li
-                            key={p.title}
-                            className="rounded-xl border border-border bg-card p-4"
-                          >
-                            <p className="font-semibold">
-                              {p.title}{" "}
-                              <span className="text-xs font-normal text-muted-foreground">
-                                — {p.cbc_track}
-                              </span>
-                            </p>
-                            <p className="mt-1 text-sm text-foreground/80">
-                              {p.why_fit}
-                            </p>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              Kenyan careers: {p.kenyan_careers.join(", ")}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </article>
-            );
-          })}
+          {attempts?.map((a, idx) => (
+            <AttemptCard
+              key={a.id}
+              attempt={a}
+              version={attempts.length - idx}
+              isLatest={idx === 0}
+              isOpen={expanded === a.id}
+              onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
+              onDownload={(version) => handleDownload(a, version)}
+            />
+          ))}
         </div>
       </main>
     </div>
+  );
+}
+
+function AttemptCard({
+  attempt: a,
+  version,
+  isLatest,
+  isOpen,
+  onToggle,
+  onDownload,
+}: {
+  attempt: Attempt;
+  version: number;
+  isLatest: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onDownload: (version: number) => void;
+}) {
+  const { unlocked, loading: loadingEntitlement, refetch } = useReportEntitlement(a.id);
+  const date = new Date(a.created_at).toLocaleString("en-KE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold">
+              v{version}
+            </span>
+            {isLatest && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                Latest
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{date}</span>
+          </div>
+          <h2 className="mt-2 font-display text-xl font-bold">{a.top_cluster}</h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground line-clamp-2">
+            {a.summary}
+          </p>
+        </div>
+        {!loadingEntitlement && unlocked && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
+            >
+              {isOpen ? "Hide details" : "View details"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDownload(version)}
+              className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lift hover:opacity-95"
+            >
+              ⬇ Download PDF
+            </button>
+          </div>
+        )}
+      </div>
+
+      {!loadingEntitlement && !unlocked && (
+        <div className="border-t border-border bg-background/40 p-6">
+          <ClusterReportPaywall quizResultId={a.id} onUnlocked={refetch} />
+        </div>
+      )}
+
+      {isOpen && unlocked && (
+        <div className="border-t border-border bg-background/40 p-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Strengths
+              </p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {a.strengths.map((s) => (
+                  <li key={s}>• {s}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Next steps
+              </p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {a.next_steps.map((s) => (
+                  <li key={s}>• {s}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Pathways
+            </p>
+            <ul className="mt-2 space-y-3 text-sm">
+              {a.pathways.map((p) => (
+                <li key={p.title} className="rounded-xl border border-border bg-card p-4">
+                  <p className="font-semibold">
+                    {p.title}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      — {p.cbc_track}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-foreground/80">{p.why_fit}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Kenyan careers: {p.kenyan_careers.join(", ")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </article>
   );
 }

@@ -2,6 +2,9 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { handleMpesaCallback } from "./lib/mpesa-callback.server";
+
+const MPESA_CALLBACK_PATH = /^\/api\/mpesa\/callback\/([^/]+)$/;
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -47,6 +50,11 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (request.method === "POST") {
+        const callbackMatch = new URL(request.url).pathname.match(MPESA_CALLBACK_PATH);
+        if (callbackMatch) return await handleMpesaCallback(request, callbackMatch[1]);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
