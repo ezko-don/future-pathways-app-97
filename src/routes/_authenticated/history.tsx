@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
+import { useGuardianContacts } from "@/hooks/useGuardianContacts";
+import { GuardianPicker } from "@/components/GuardianPicker";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
@@ -25,8 +27,13 @@ function HistoryPage() {
   const navigate = useNavigate();
   const { user } = useSession();
   const profile = useProfile(user?.id);
+  const { contacts } = useGuardianContacts(user?.id);
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [picker, setPicker] = useState<
+    { mode: "whatsapp" | "email"; attempt: Attempt; version: number } | null
+  >(null);
+
 
   useEffect(() => {
     if (!user) return;
@@ -69,21 +76,12 @@ function HistoryPage() {
     );
   }
 
-  function handleWhatsApp(a: Attempt) {
+  function sendWhatsApp(a: Attempt, phone: string) {
     const msg = buildWhatsAppMessage(a, profile?.full_name ?? undefined);
-    const phone = window.prompt(
-      "Enter your parent/guardian's WhatsApp number (with country code). Leave blank to pick a contact in WhatsApp.",
-      "",
-    );
-    if (phone === null) return;
-    openWhatsAppShare(msg, phone.trim() || undefined);
+    openWhatsAppShare(msg, phone || undefined);
   }
 
-  function handleEmail(a: Attempt, version: number) {
-    const to = window.prompt(
-      "Send this attempt's summary to which email?",
-      user?.email ?? "",
-    );
+  function sendEmail(a: Attempt, version: number, to: string) {
     if (!to) return;
     const subject = encodeURIComponent(`KaziFuture Career Report v${version} — ${a.top_cluster}`);
     const body = encodeURIComponent(
@@ -108,6 +106,7 @@ function HistoryPage() {
     window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
     handleDownload(a, version);
   }
+
 
   return (
     <div className="min-h-screen bg-background bg-grain">
