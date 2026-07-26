@@ -178,8 +178,20 @@ function Dashboard() {
           loading={loadingReport}
           report={report}
           onDownload={handleDownload}
-          onWhatsApp={handleWhatsApp}
-          onEmail={handleEmail}
+          onWhatsApp={() => setPickerMode("whatsapp")}
+          onEmail={() => setPickerMode("email")}
+        />
+
+        <GuardianPicker
+          open={pickerMode !== null}
+          onClose={() => setPickerMode(null)}
+          contacts={contacts}
+          mode={pickerMode ?? "whatsapp"}
+          defaultValue={pickerMode === "email" ? user?.email ?? "" : ""}
+          onPick={(value) => {
+            if (pickerMode === "whatsapp") sendWhatsApp(value);
+            else if (pickerMode === "email") sendEmail(value);
+          }}
         />
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
