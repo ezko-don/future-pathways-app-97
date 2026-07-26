@@ -292,6 +292,20 @@ function HistoryPage() {
           })}
         </div>
       </main>
+
+      <GuardianPicker
+        open={picker !== null}
+        onClose={() => setPicker(null)}
+        contacts={contacts}
+        mode={picker?.mode ?? "whatsapp"}
+        defaultValue={picker?.mode === "email" ? user?.email ?? "" : ""}
+        onPick={(value) => {
+          if (!picker) return;
+          if (picker.mode === "whatsapp") sendWhatsApp(picker.attempt, value);
+          else sendEmail(picker.attempt, picker.version, value);
+        }}
+      />
     </div>
   );
 }
+
