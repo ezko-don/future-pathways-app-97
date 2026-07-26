@@ -39,12 +39,14 @@ Unique on `(user_id, role)`. RLS: owner-only `SELECT`. No client-side
 `handle_new_user` trigger (`SECURITY DEFINER`), never directly by a client.
 
 ### `public.quiz_results`
-One row per completed AI Navigator quiz submission.
+One row per completed AI Navigator quiz submission — from the web quiz or
+the WhatsApp text version.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid PK | |
-| `user_id` | uuid FK → `auth.users.id`, cascade delete | |
+| `user_id` | uuid FK → `auth.users.id`, cascade delete, **nullable** | set for web-originated attempts; null for a WhatsApp attempt until its phone number is linked |
+| `whatsapp_identity_id` | uuid FK → `whatsapp_identities.id`, nullable, `ON DELETE SET NULL` | set for WhatsApp-originated attempts |
 | `answers` | jsonb | raw `{questionId, question, answer}[]` |
 | `top_cluster` | text | |
 | `summary` | text | |
@@ -53,7 +55,13 @@ One row per completed AI Navigator quiz submission.
 | `next_steps` | jsonb | string array |
 | `created_at` / `updated_at` | timestamptz | |
 
-RLS: owner-only, full CRUD (`auth.uid() = user_id`).
+`CHECK (user_id IS NOT NULL OR whatsapp_identity_id IS NOT NULL)` — every row
+must be owned by something.
+
+RLS: owner-only, full CRUD (`auth.uid() = user_id`) — this policy already
+evaluates to false (not an error) when `user_id` is null, so anonymous
+WhatsApp-originated rows stay invisible to every authenticated client until
+`mergeWhatsappIdentity` backfills `user_id`.
 
 ### `public.payment_purpose` / `public.payment_status` / `public.subscription_tier` / `public.subscription_status` (enums)
 `payment_purpose`: `'cluster_report' | 'subscription' | 'kit_order'`
@@ -101,6 +109,35 @@ entitlement check (`getReportEntitlement`) support an active subscription
 unlocking reports, but the subscription purchase flow itself is future
 work (recurring billing is out of scope for Sprint 2's one-time paywall).
 
+### `public.whatsapp_identities`
+One row per phone number that has ever texted the WhatsApp Navigator.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `user_id` | uuid FK → `auth.users.id`, nullable, `ON DELETE SET NULL` | null until `mergeWhatsappIdentity` links it to an account |
+| `phone_number` | text, unique | normalized `2547XXXXXXXX` |
+| `created_at` | timestamptz | |
+
+RLS: owner-only `SELECT` (`auth.uid() = user_id`, so invisible while
+unlinked). No client `INSERT`/`UPDATE`/`DELETE` — created by the WhatsApp
+webhook, linked by `mergeWhatsappIdentity`, both service-role.
+
+### `public.whatsapp_sessions`
+Bot conversation state — one row per identity, upserted on every inbound
+message.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `whatsapp_identity_id` | uuid FK → `whatsapp_identities.id`, unique, cascade delete | |
+| `state` | jsonb | `{ step, answers, quizResultId? }` — current position in the text quiz |
+| `updated_at` | timestamptz | |
+
+RLS enabled with **zero grants to `authenticated`/`anon`** — this is pure
+bot-internal state with no reason any client should ever read or write it
+directly; only the service role touches it.
+
 ### Shared functions/triggers
 - `has_role(_user_id, _role)` — `SECURITY DEFINER`, `STABLE`; used to check
   roles without exposing `user_roles` to broader read access. Execute
@@ -119,13 +156,18 @@ work (recurring billing is out of scope for Sprint 2's one-time paywall).
 auth.users (Supabase managed)
    │ 1:1
    ▼
-profiles ──────────────┬──────────────────┬──────────────────┐
-   │ 1:N (via user_id)  │ 1:N (via user_id) │ 1:N (via user_id) │ 1:N (via user_id)
-   ▼                    ▼                  ▼                  ▼
-user_roles          quiz_results ◄── payments ──► subscriptions
-                     (quiz_result_id,    (payment_id,
-                      nullable)           nullable)
+profiles ──────────────┬──────────────────┬──────────────────┬──────────────────┐
+   │ 1:N (user_id)      │ 1:N (user_id)     │ 1:N (user_id)     │ 1:N (user_id)     │ 1:N (user_id, nullable)
+   ▼                    ▼                  ▼                  ▼                  ▼
+user_roles          quiz_results ◄── payments ──► subscriptions      whatsapp_identities
+                     (quiz_result_id,    (payment_id,                       │ 1:1
+                      whatsapp_identity_id, nullable)                       ▼
+                      both nullable)                                whatsapp_sessions
 ```
+`quiz_results.user_id` and `quiz_results.whatsapp_identity_id` are both
+nullable (one or the other must be set) — a WhatsApp-originated row has no
+`user_id` until `mergeWhatsappIdentity` backfills it from the matching
+`whatsapp_identities` row.
 
 ## 2. Proposed Schema — Planned Modules
 
@@ -201,28 +243,14 @@ orders
 RLS: owner-only read/insert on `orders`; status transitions via
 service-role server function only.
 
-### Omnichannel / WhatsApp — for FR-13/FR-14
-```
-whatsapp_identities
-  id uuid PK
-  user_id uuid FK -> auth.users nullable   -- null until first web login/merge
-  phone_number text unique
-  created_at
-
-whatsapp_sessions
-  id uuid PK
-  whatsapp_identity_id uuid FK -> whatsapp_identities
-  state jsonb               -- current position in the text quest flow
-  updated_at
-```
-Merge rule: on web signup/login, if the user supplies/verifies a phone
-number matching an existing `whatsapp_identities.phone_number` with a null
-`user_id`, attach it — this is what makes FR-14 ("progress syncs") work.
-
 ## 3. Conventions
 
 - Every user-owned table: `user_id uuid NOT NULL REFERENCES auth.users(id)
-  ON DELETE CASCADE`, RLS enabled, `auth.uid() = user_id` policy.
+  ON DELETE CASCADE`, RLS enabled, `auth.uid() = user_id` policy — unless the
+  row can originate anonymously from a non-web channel (e.g. `quiz_results`
+  from WhatsApp), in which case `user_id` is nullable with a `CHECK` requiring
+  some other owner column instead, and the same `auth.uid() = user_id` policy
+  still safely hides unowned rows (false, not an error, when `user_id` is null).
 - Every table gets `created_at timestamptz NOT NULL DEFAULT now()`; add
   `updated_at` + `set_updated_at` trigger only if the row is mutated after
   creation.

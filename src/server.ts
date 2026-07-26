@@ -3,8 +3,10 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleMpesaCallback } from "./lib/mpesa-callback.server";
+import { handleWhatsappWebhook } from "./lib/whatsapp-webhook.server";
 
 const MPESA_CALLBACK_PATH = /^\/api\/mpesa\/callback\/([^/]+)$/;
+const WHATSAPP_WEBHOOK_PATH = /^\/api\/whatsapp\/webhook\/([^/]+)$/;
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -51,8 +53,13 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       if (request.method === "POST") {
-        const callbackMatch = new URL(request.url).pathname.match(MPESA_CALLBACK_PATH);
+        const pathname = new URL(request.url).pathname;
+
+        const callbackMatch = pathname.match(MPESA_CALLBACK_PATH);
         if (callbackMatch) return await handleMpesaCallback(request, callbackMatch[1]);
+
+        const whatsappMatch = pathname.match(WHATSAPP_WEBHOOK_PATH);
+        if (whatsappMatch) return await handleWhatsappWebhook(request, whatsappMatch[1]);
       }
 
       const handler = await getServerEntry();

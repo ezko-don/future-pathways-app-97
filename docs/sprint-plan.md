@@ -34,15 +34,20 @@ on the full report. Carried into Sprint 2.
   credentials and a public callback URL (see [api.md](./api.md)) before this
   can be exercised end-to-end.
 
-## Sprint 3 — WhatsApp extension (fastest path to distribution)
+## Sprint 3 — WhatsApp extension (code complete, sandbox test pending)
 **Goal**: validate engagement cheaply before investing in heavy game UI.
-- [ ] WhatsApp Business API integration (Twilio or Turn.io) — webhook route
-- [ ] `whatsapp_identities` / `whatsapp_sessions` tables
-- [ ] Text version of the Navigator quiz ("Choose Your Own Adventure" flow)
+- [x] WhatsApp Business API integration (Twilio) — webhook route
+- [x] `whatsapp_identities` / `whatsapp_sessions` tables
+- [x] Text version of the Navigator quiz ("Choose Your Own Adventure" flow)
       writing into the same `quiz_results` table
-- [ ] Phone-number-to-account merge on subsequent web login
+- [x] Phone-number-to-account merge — user-initiated ("Link your WhatsApp
+      number" on the dashboard) rather than automatic on login (see
+      `mergeWhatsappIdentity` in [api.md](./api.md) for why)
 - **Exit criteria**: texting "START" completes a quiz and produces the same
-  AI report a web user gets; logging in on web later shows that history.
+  AI report a web user gets; logging in on web and linking that number shows
+  that history. **Not yet verified** — needs a real Twilio WhatsApp Sandbox
+  connection (see [api.md](./api.md)) before this can be exercised
+  end-to-end.
 
 ## Sprint 4 — Career Arena (2 tracks)
 **Goal**: gamified simulations for Software Engineering and Agribusiness.

@@ -94,6 +94,56 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_identities: {
+        Row: {
+          created_at: string
+          id: string
+          phone_number: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phone_number: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phone_number?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_sessions: {
+        Row: {
+          id: string
+          state: Json
+          updated_at: string
+          whatsapp_identity_id: string
+        }
+        Insert: {
+          id?: string
+          state?: Json
+          updated_at?: string
+          whatsapp_identity_id: string
+        }
+        Update: {
+          id?: string
+          state?: Json
+          updated_at?: string
+          whatsapp_identity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_sessions_whatsapp_identity_id_fkey"
+            columns: ["whatsapp_identity_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -146,7 +196,8 @@ export type Database = {
           summary: string
           top_cluster: string
           updated_at: string
-          user_id: string
+          user_id: string | null
+          whatsapp_identity_id: string | null
         }
         Insert: {
           answers: Json
@@ -158,7 +209,8 @@ export type Database = {
           summary: string
           top_cluster: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
+          whatsapp_identity_id?: string | null
         }
         Update: {
           answers?: Json
@@ -170,9 +222,18 @@ export type Database = {
           summary?: string
           top_cluster?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
+          whatsapp_identity_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "quiz_results_whatsapp_identity_id_fkey"
+            columns: ["whatsapp_identity_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_identities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

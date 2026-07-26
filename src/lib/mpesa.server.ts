@@ -27,14 +27,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export function normalizePhoneNumber(input: string): string {
-  const digits = input.replace(/\D/g, "");
-  if (digits.startsWith("254") && digits.length === 12) return digits;
-  if (digits.startsWith("0") && digits.length === 10) return `254${digits.slice(1)}`;
-  if ((digits.startsWith("7") || digits.startsWith("1")) && digits.length === 9)
-    return `254${digits}`;
-  throw new Error("Enter a valid Kenyan phone number, e.g. 0712345678.");
-}
+export { normalizePhoneNumber } from "@/lib/phone";
 
 async function getAccessToken(): Promise<string> {
   const consumerKey = requireEnv("MPESA_CONSUMER_KEY");

@@ -2,92 +2,21 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { submitQuiz } from "@/lib/quiz.functions";
+import { QUIZ_QUESTIONS } from "@/lib/quiz-questions";
 
 export const Route = createFileRoute("/_authenticated/quiz")({
   head: () => ({
     meta: [
       { title: "AI Career Navigator Quiz · KaziFuture" },
-      { name: "description", content: "Discover your CBC pathway with the KaziFuture AI Navigator quiz." },
+      {
+        name: "description",
+        content: "Discover your CBC pathway with the KaziFuture AI Navigator quiz.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: QuizPage,
 });
-
-interface QuizQuestion {
-  id: string;
-  question: string;
-  options: string[];
-}
-
-const QUESTIONS: QuizQuestion[] = [
-  {
-    id: "subject",
-    question: "Which school subject makes you lose track of time?",
-    options: [
-      "Mathematics or Physics",
-      "Biology or Agriculture",
-      "Business or Geography",
-      "Kiswahili, English or History",
-      "Art, Music or Sports",
-    ],
-  },
-  {
-    id: "activity",
-    question: "On a free Saturday, you would rather…",
-    options: [
-      "Take apart a phone or radio to see how it works",
-      "Volunteer at a clinic, farm or community project",
-      "Sell something small at the market or online",
-      "Write, film or perform something creative",
-      "Coach or organise a team sport",
-    ],
-  },
-  {
-    id: "problem",
-    question: "A problem in your community you'd love to fix:",
-    options: [
-      "Unreliable electricity, water or internet",
-      "Food security and small-farmer income",
-      "Youth unemployment and hustles",
-      "Poor mental health support in schools",
-      "Loss of local culture and languages",
-    ],
-  },
-  {
-    id: "strength",
-    question: "Friends usually ask you for help with…",
-    options: [
-      "Fixing gadgets or solving puzzles",
-      "Explaining tough concepts calmly",
-      "Planning events or budgets",
-      "Designing posters, videos or captions",
-      "Settling arguments and speaking up",
-    ],
-  },
-  {
-    id: "work",
-    question: "Your dream workplace looks like…",
-    options: [
-      "A lab, workshop or engineering site",
-      "A hospital, farm or field research team",
-      "A startup office or trading floor",
-      "A studio, newsroom or classroom",
-      "Anywhere outdoors with real people",
-    ],
-  },
-  {
-    id: "future",
-    question: "In 10 years you want to be known for…",
-    options: [
-      "Building tech that solves African problems",
-      "Improving lives through health or environment",
-      "Running a profitable business that hires others",
-      "Telling Kenyan stories to the world",
-      "Leading change in policy or community",
-    ],
-  },
-];
 
 function QuizPage() {
   const navigate = useNavigate();
@@ -97,9 +26,9 @@ function QuizPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = QUESTIONS.length;
+  const total = QUIZ_QUESTIONS.length;
   const isLast = step === total - 1;
-  const current = QUESTIONS[step];
+  const current = QUIZ_QUESTIONS[step];
   const currentAnswer = answers[current.id];
 
   function pick(option: string) {
@@ -115,7 +44,7 @@ function QuizPage() {
     }
     setSubmitting(true);
     try {
-      const payload = QUESTIONS.map((q) => ({
+      const payload = QUIZ_QUESTIONS.map((q) => ({
         questionId: q.id,
         question: q.question,
         answer: answers[q.id],
@@ -191,11 +120,7 @@ function QuizPage() {
               disabled={!currentAnswer || submitting}
               className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95 disabled:opacity-60"
             >
-              {submitting
-                ? "Generating your report…"
-                : isLast
-                  ? "Get my AI report"
-                  : "Next"}
+              {submitting ? "Generating your report…" : isLast ? "Get my AI report" : "Next"}
             </button>
           </div>
         </div>

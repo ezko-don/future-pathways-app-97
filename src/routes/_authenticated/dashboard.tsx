@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { useReportEntitlement } from "@/hooks/useReportEntitlement";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { ClusterReportPaywall } from "@/components/ClusterReportPaywall";
+import { LinkWhatsapp } from "@/components/LinkWhatsapp";
 
 function confirmRetake(): boolean {
   return window.confirm(
@@ -36,38 +37,35 @@ function Dashboard() {
   const [loadingReport, setLoadingReport] = useState(true);
   const { unlocked, loading: loadingEntitlement, refetch: refetchEntitlement } = useReportEntitlement(report?.id);
 
-  useEffect(() => {
+  const fetchLatestReport = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
     setLoadingReport(true);
-    supabase
+    const { data } = await supabase
       .from("quiz_results")
       .select("id, top_cluster, summary, strengths, pathways, next_steps, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        if (data) {
-          setReport({
-            id: data.id,
-            top_cluster: data.top_cluster,
-            summary: data.summary,
-            strengths: data.strengths as string[],
-            pathways: data.pathways as QuizReportData["pathways"],
-            next_steps: data.next_steps as string[],
-            created_at: data.created_at,
-          });
-        } else {
-          setReport(null);
-        }
-        setLoadingReport(false);
+      .maybeSingle();
+    if (data) {
+      setReport({
+        id: data.id,
+        top_cluster: data.top_cluster,
+        summary: data.summary,
+        strengths: data.strengths as string[],
+        pathways: data.pathways as QuizReportData["pathways"],
+        next_steps: data.next_steps as string[],
+        created_at: data.created_at,
       });
-    return () => {
-      cancelled = true;
-    };
+    } else {
+      setReport(null);
+    }
+    setLoadingReport(false);
   }, [user]);
+
+  useEffect(() => {
+    fetchLatestReport();
+  }, [fetchLatestReport]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -139,6 +137,10 @@ function Dashboard() {
           loadingEntitlement={loadingEntitlement}
           onUnlocked={refetchEntitlement}
         />
+
+        <div className="mt-6">
+          <LinkWhatsapp onLinked={fetchLatestReport} />
+        </div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {role === "parent" && <ParentCards />}
