@@ -207,14 +207,14 @@ function HistoryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleWhatsApp(a)}
+                      onClick={() => setPicker({ mode: "whatsapp", attempt: a, version })}
                       className="rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-95"
                     >
                       💬 WhatsApp
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleEmail(a, version)}
+                      onClick={() => setPicker({ mode: "email", attempt: a, version })}
                       className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
                     >
                       ✉ Email
