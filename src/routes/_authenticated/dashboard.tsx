@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
+import { useGuardianContacts } from "@/hooks/useGuardianContacts";
+import { GuardianPicker } from "@/components/GuardianPicker";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
@@ -33,6 +35,8 @@ function Dashboard() {
   const profile = useProfile(user?.id);
   const [report, setReport] = useState<StoredReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(true);
+  const { contacts } = useGuardianContacts(user?.id);
+  const [pickerMode, setPickerMode] = useState<"whatsapp" | "email" | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -80,24 +84,14 @@ function Dashboard() {
     );
   }
 
-  function handleWhatsApp() {
+  function sendWhatsApp(phone: string) {
     if (!report) return;
     const msg = buildWhatsAppMessage(report, profile?.full_name ?? undefined);
-    const phone = window.prompt(
-      "Enter your parent/guardian's WhatsApp number (with country code, e.g. 2547XXXXXXXX). Leave blank to pick a contact in WhatsApp.",
-      "",
-    );
-    if (phone === null) return;
-    openWhatsAppShare(msg, phone.trim() || undefined);
+    openWhatsAppShare(msg, phone || undefined);
   }
 
-  function handleEmail() {
-    if (!report) return;
-    const to = window.prompt(
-      "Send the report summary to which email? (yours or your guardian's)",
-      user?.email ?? "",
-    );
-    if (!to) return;
+  function sendEmail(to: string) {
+    if (!report || !to) return;
     const subject = encodeURIComponent(`KaziFuture Career Report — ${report.top_cluster}`);
     const lines = [
       `Hi,`,
@@ -119,7 +113,6 @@ function Dashboard() {
     ].join("\n");
     const body = encodeURIComponent(lines);
     window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    // Also trigger the PDF download so it can be attached from the mail client.
     downloadReportPdf(
       { ...report, learner_name: profile?.full_name ?? undefined },
       `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
@@ -143,6 +136,12 @@ function Dashboard() {
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground md:inline">{user?.email}</span>
+            <Link
+              to="/contacts"
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
+            >
+              Contacts
+            </Link>
             <Link
               to="/history"
               className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary"
@@ -179,8 +178,20 @@ function Dashboard() {
           loading={loadingReport}
           report={report}
           onDownload={handleDownload}
-          onWhatsApp={handleWhatsApp}
-          onEmail={handleEmail}
+          onWhatsApp={() => setPickerMode("whatsapp")}
+          onEmail={() => setPickerMode("email")}
+        />
+
+        <GuardianPicker
+          open={pickerMode !== null}
+          onClose={() => setPickerMode(null)}
+          contacts={contacts}
+          mode={pickerMode ?? "whatsapp"}
+          defaultValue={pickerMode === "email" ? user?.email ?? "" : ""}
+          onPick={(value) => {
+            if (pickerMode === "whatsapp") sendWhatsApp(value);
+            else if (pickerMode === "email") sendEmail(value);
+          }}
         />
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">

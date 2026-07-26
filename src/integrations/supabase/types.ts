@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      guardian_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_primary: boolean
+          label: string
+          name: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string
+          name?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string
+          name?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
