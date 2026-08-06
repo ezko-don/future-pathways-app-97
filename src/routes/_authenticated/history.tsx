@@ -1,13 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
-import { useGuardianContacts } from "@/hooks/useGuardianContacts";
+import { useGuardianContacts, type GuardianContact } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
 import { useBilling } from "@/components/MpesaPaywall";
 
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { uploadReportPdf, defaultContactFor, contactValue } from "@/lib/report-delivery";
+import { emailReportLink } from "@/lib/email-report.functions";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
+
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -38,6 +42,13 @@ function HistoryPage() {
   const [picker, setPicker] = useState<
     { mode: "whatsapp" | "email"; attempt: Attempt; version: number } | null
   >(null);
+  const [emailStatus, setEmailStatus] = useState<
+    { id: string; message: string; url: string | null } | null
+  >(null);
+  const emailReport = useServerFn(emailReportLink);
+  const defaultWhatsApp = defaultContactFor(contacts, "whatsapp");
+  const defaultEmail = defaultContactFor(contacts, "email");
+
 
 
   useEffect(() => {
@@ -91,31 +102,39 @@ function HistoryPage() {
     openWhatsAppShare(msg, phone || undefined);
   }
 
-  function sendEmail(a: Attempt, version: number, to: string) {
-    if (!to) return;
-    const subject = encodeURIComponent(`KaziFuture Career Report v${version} — ${a.top_cluster}`);
-    const body = encodeURIComponent(
-      [
-        `Hi,`,
-        ``,
-        `${profile?.full_name ?? "A KaziFuture learner"} — attempt v${version}.`,
-        ``,
-        `Top cluster: ${a.top_cluster}`,
-        ``,
-        a.summary,
-        ``,
-        `Pathways:`,
-        ...a.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track})`),
-        ``,
-        `Next steps:`,
-        ...a.next_steps.map((s) => `  • ${s}`),
-        ``,
-        `Full PDF downloaded from your KaziFuture dashboard.`,
-      ].join("\n"),
-    );
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    handleDownload(a, version);
+  async function sendEmail(
+    a: Attempt,
+    _version: number,
+    to: string,
+    contact?: GuardianContact,
+  ) {
+    if (!to || !user) return;
+    setEmailStatus({ id: a.id, message: `Preparing the report for ${to}…`, url: null });
+    try {
+      const pdfPath = await uploadReportPdf(user.id, a.id, {
+        ...a,
+        learner_name: profile?.full_name ?? undefined,
+      });
+      const res = await emailReport({
+        data: {
+          pdfPath,
+          quizResultId: a.id,
+          recipientEmail: to,
+          ...(contact?.label ? { recipientLabel: contact.label } : {}),
+          ...(profile?.full_name ? { learnerName: profile.full_name } : {}),
+          topCluster: a.top_cluster,
+        },
+      });
+      setEmailStatus({ id: a.id, message: res.message, url: res.sent ? null : res.pdfUrl });
+    } catch (err) {
+      setEmailStatus({
+        id: a.id,
+        message: err instanceof Error ? err.message : "Could not send the report by email.",
+        url: null,
+      });
+    }
   }
+
 
 
   return (
@@ -223,18 +242,51 @@ function HistoryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPicker({ mode: "whatsapp", attempt: a, version })}
+                      onClick={() =>
+                        defaultWhatsApp
+                          ? sendWhatsApp(a, contactValue(defaultWhatsApp, "whatsapp"))
+                          : setPicker({ mode: "whatsapp", attempt: a, version })
+                      }
                       className="rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-95"
                     >
-                      💬 WhatsApp
+                      💬 {defaultWhatsApp ? `WhatsApp ${defaultWhatsApp.label}` : "WhatsApp"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPicker({ mode: "email", attempt: a, version })}
+                      onClick={() =>
+                        defaultEmail
+                          ? sendEmail(a, version, contactValue(defaultEmail, "email"), defaultEmail)
+                          : setPicker({ mode: "email", attempt: a, version })
+                      }
                       className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
                     >
-                      ✉ Email
+                      ✉ {defaultEmail ? `Email ${defaultEmail.label}` : "Email"}
                     </button>
+                    {(defaultWhatsApp || defaultEmail) && (
+                      <button
+                        type="button"
+                        onClick={() => setPicker({ mode: "email", attempt: a, version })}
+                        className="px-2 text-xs font-semibold text-muted-foreground hover:underline"
+                      >
+                        change recipient
+                      </button>
+                    )}
+                    {emailStatus?.id === a.id && (
+                      <span className="w-full text-xs text-muted-foreground">
+                        {emailStatus.message}{" "}
+                        {emailStatus.url && (
+                          <a
+                            href={emailStatus.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            Open hosted PDF →
+                          </a>
+                        )}
+                      </span>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => handleDownload(a, version)}
@@ -310,12 +362,17 @@ function HistoryPage() {
         onClose={() => setPicker(null)}
         contacts={contacts}
         mode={picker?.mode ?? "whatsapp"}
-        defaultValue={picker?.mode === "email" ? user?.email ?? "" : ""}
-        onPick={(value) => {
+        defaultValue={
+          picker?.mode === "email"
+            ? defaultEmail?.email ?? user?.email ?? ""
+            : defaultWhatsApp?.whatsapp ?? ""
+        }
+        onPick={(value, contact) => {
           if (!picker) return;
           if (picker.mode === "whatsapp") sendWhatsApp(picker.attempt, value);
-          else sendEmail(picker.attempt, picker.version, value);
+          else sendEmail(picker.attempt, picker.version, value, contact);
         }}
+
       />
     </div>
   );

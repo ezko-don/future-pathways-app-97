@@ -1,12 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
-import { useGuardianContacts } from "@/hooks/useGuardianContacts";
+import { useGuardianContacts, type GuardianContact } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
 import { MpesaPaywall, useBilling } from "@/components/MpesaPaywall";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { uploadReportPdf, defaultContactFor, contactValue } from "@/lib/report-delivery";
+import { emailReportLink } from "@/lib/email-report.functions";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
+
 
 
 function confirmRetake(): boolean {
@@ -39,8 +43,14 @@ function Dashboard() {
   const [loadingReport, setLoadingReport] = useState(true);
   const { contacts } = useGuardianContacts(user?.id);
   const [pickerMode, setPickerMode] = useState<"whatsapp" | "email" | null>(null);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [emailLink, setEmailLink] = useState<string | null>(null);
+  const emailReport = useServerFn(emailReportLink);
+  const defaultWhatsApp = defaultContactFor(contacts, "whatsapp");
+  const defaultEmail = defaultContactFor(contacts, "email");
   const { billing, loading: billingLoading, refresh: refreshBilling } = useBilling();
   const hasAccess = !!billing?.hasAccess;
+
 
 
   useEffect(() => {
@@ -96,34 +106,34 @@ function Dashboard() {
     openWhatsAppShare(msg, phone || undefined);
   }
 
-  function sendEmail(to: string) {
-    if (!report || !to) return;
-    const subject = encodeURIComponent(`KaziFuture Career Report — ${report.top_cluster}`);
-    const lines = [
-      `Hi,`,
-      ``,
-      `${profile?.full_name ?? "A KaziFuture learner"} completed the AI Career Navigator quiz.`,
-      ``,
-      `Top cluster: ${report.top_cluster}`,
-      ``,
-      report.summary,
-      ``,
-      `Recommended CBC pathways:`,
-      ...report.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track}) — ${p.why_fit}`),
-      ``,
-      `Next steps:`,
-      ...report.next_steps.map((s) => `  • ${s}`),
-      ``,
-      `The full branded PDF can be downloaded from the KaziFuture dashboard.`,
-      `— KaziFuture`,
-    ].join("\n");
-    const body = encodeURIComponent(lines);
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    downloadReportPdf(
-      { ...report, learner_name: profile?.full_name ?? undefined },
-      `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
-    );
+  async function sendEmail(to: string, contact?: GuardianContact) {
+    if (!report || !to || !user) return;
+    setEmailStatus(`Preparing the report for ${to}…`);
+    try {
+      const pdfPath = await uploadReportPdf(user.id, report.id, {
+        ...report,
+        learner_name: profile?.full_name ?? undefined,
+      });
+      const res = await emailReport({
+        data: {
+          pdfPath,
+          quizResultId: report.id,
+          recipientEmail: to,
+          ...(contact?.label ? { recipientLabel: contact.label } : {}),
+          ...(profile?.full_name ? { learnerName: profile.full_name } : {}),
+          topCluster: report.top_cluster,
+        },
+      });
+      setEmailStatus(res.message);
+      setEmailLink(res.sent ? null : res.pdfUrl);
+    } catch (err) {
+      setEmailStatus(
+        err instanceof Error ? err.message : "Could not send the report by email.",
+      );
+      setEmailLink(null);
+    }
   }
+
 
   const displayName = profile?.full_name || user?.email || "there";
 
@@ -185,10 +195,36 @@ function Dashboard() {
           report={report}
           hasAccess={hasAccess}
           billingLoading={billingLoading}
+          whatsappTarget={defaultWhatsApp}
+          emailTarget={defaultEmail}
           onDownload={handleDownload}
-          onWhatsApp={() => setPickerMode("whatsapp")}
-          onEmail={() => setPickerMode("email")}
+          onWhatsApp={() => {
+            if (defaultWhatsApp) sendWhatsApp(contactValue(defaultWhatsApp, "whatsapp"));
+            else setPickerMode("whatsapp");
+          }}
+          onEmail={() => {
+            if (defaultEmail) sendEmail(contactValue(defaultEmail, "email"), defaultEmail);
+            else setPickerMode("email");
+          }}
+          onChangeWhatsApp={() => setPickerMode("whatsapp")}
+          onChangeEmail={() => setPickerMode("email")}
         />
+
+        {emailStatus && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {emailStatus}{" "}
+            {emailLink && (
+              <a
+                href={emailLink}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-primary hover:underline"
+              >
+                Open the hosted PDF link →
+              </a>
+            )}
+          </p>
+        )}
 
         {report && !hasAccess && !billingLoading && (
           <div className="mt-6">
@@ -208,12 +244,17 @@ function Dashboard() {
           onClose={() => setPickerMode(null)}
           contacts={contacts}
           mode={pickerMode ?? "whatsapp"}
-          defaultValue={pickerMode === "email" ? user?.email ?? "" : ""}
-          onPick={(value) => {
+          defaultValue={
+            pickerMode === "email"
+              ? defaultEmail?.email ?? user?.email ?? ""
+              : defaultWhatsApp?.whatsapp ?? ""
+          }
+          onPick={(value, contact) => {
             if (pickerMode === "whatsapp") sendWhatsApp(value);
-            else if (pickerMode === "email") sendEmail(value);
+            else if (pickerMode === "email") sendEmail(value, contact);
           }}
         />
+
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {role === "parent" && <ParentCards />}
@@ -235,18 +276,27 @@ function ReportPanel({
   report,
   hasAccess,
   billingLoading,
+  whatsappTarget,
+  emailTarget,
   onDownload,
   onWhatsApp,
   onEmail,
+  onChangeWhatsApp,
+  onChangeEmail,
 }: {
   loading: boolean;
   report: StoredReport | null;
   hasAccess: boolean;
   billingLoading: boolean;
+  whatsappTarget: GuardianContact | null;
+  emailTarget: GuardianContact | null;
   onDownload: () => void;
   onWhatsApp: () => void;
   onEmail: () => void;
+  onChangeWhatsApp: () => void;
+  onChangeEmail: () => void;
 }) {
+
 
   if (loading) {
     return (
@@ -360,15 +410,34 @@ function ReportPanel({
             onClick={onWhatsApp}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
           >
-            💬 Share on WhatsApp
+            💬 {whatsappTarget ? `WhatsApp ${whatsappTarget.label}` : "Share on WhatsApp"}
           </button>
+          {whatsappTarget && (
+            <button
+              type="button"
+              onClick={onChangeWhatsApp}
+              className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
+            >
+              change
+            </button>
+          )}
           <button
             type="button"
             onClick={onEmail}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2 text-xs font-semibold hover:bg-secondary"
           >
-            ✉ Email this report
+            ✉ {emailTarget ? `Email ${emailTarget.label}` : "Email this report"}
           </button>
+          {emailTarget && (
+            <button
+              type="button"
+              onClick={onChangeEmail}
+              className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
+            >
+              change
+            </button>
+          )}
+
 
           <Link
             to="/compare"
