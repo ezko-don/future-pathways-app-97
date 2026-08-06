@@ -39,6 +39,9 @@ function Dashboard() {
   const [loadingReport, setLoadingReport] = useState(true);
   const { contacts } = useGuardianContacts(user?.id);
   const [pickerMode, setPickerMode] = useState<"whatsapp" | "email" | null>(null);
+  const { billing, loading: billingLoading, refresh: refreshBilling } = useBilling();
+  const hasAccess = !!billing?.hasAccess;
+
 
   useEffect(() => {
     if (!user) return;
