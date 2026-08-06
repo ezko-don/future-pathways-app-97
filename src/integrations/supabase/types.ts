@@ -172,6 +172,56 @@ export type Database = {
         }
         Relationships: []
       }
+      report_deliveries: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          pdf_path: string | null
+          pdf_url: string | null
+          quiz_result_id: string | null
+          recipient_email: string
+          recipient_label: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          pdf_path?: string | null
+          pdf_url?: string | null
+          quiz_result_id?: string | null
+          recipient_email: string
+          recipient_label?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          pdf_path?: string | null
+          pdf_url?: string | null
+          quiz_result_id?: string | null
+          recipient_email?: string
+          recipient_label?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_deliveries_quiz_result_id_fkey"
+            columns: ["quiz_result_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
