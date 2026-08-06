@@ -295,23 +295,64 @@ function ReportPanel({
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Recommended pathways
             </p>
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-2 space-y-2 text-sm">
               {report.pathways.map((p) => (
                 <li key={p.title}>
                   <span className="font-semibold">{p.title}</span>{" "}
                   <span className="text-muted-foreground">— {p.cbc_track}</span>
+                  {hasAccess && (
+                    <>
+                      <span className="mt-0.5 block text-muted-foreground">{p.why_fit}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Careers: {p.kenyan_careers.join(", ")}
+                      </span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
+          {hasAccess ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Your strengths
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-foreground/80">
+                  {report.strengths.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Next steps
+                </p>
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-foreground/80">
+                  {report.next_steps.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          ) : (
+            !billingLoading && (
+              <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                🔒 Strengths, why each pathway fits, Kenyan career matches and the PDF
+                are part of the full Cluster Report.
+              </p>
+            )
+          )}
         </div>
         <div className="flex flex-col gap-2 md:w-52">
           <button
             type="button"
             onClick={onDownload}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+            disabled={!hasAccess}
+            title={hasAccess ? undefined : "Unlock the full report to download the PDF"}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95 disabled:opacity-50"
           >
-            ⬇ Download PDF
+            {hasAccess ? "⬇ Download PDF" : "🔒 Download PDF"}
           </button>
           <button
             type="button"
@@ -327,6 +368,7 @@ function ReportPanel({
           >
             ✉ Email this report
           </button>
+
           <Link
             to="/compare"
             className="inline-flex items-center justify-center rounded-full border border-transparent px-5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
