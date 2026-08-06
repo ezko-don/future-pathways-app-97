@@ -195,10 +195,36 @@ function Dashboard() {
           report={report}
           hasAccess={hasAccess}
           billingLoading={billingLoading}
+          whatsappTarget={defaultWhatsApp}
+          emailTarget={defaultEmail}
           onDownload={handleDownload}
-          onWhatsApp={() => setPickerMode("whatsapp")}
-          onEmail={() => setPickerMode("email")}
+          onWhatsApp={() => {
+            if (defaultWhatsApp) sendWhatsApp(contactValue(defaultWhatsApp, "whatsapp"));
+            else setPickerMode("whatsapp");
+          }}
+          onEmail={() => {
+            if (defaultEmail) sendEmail(contactValue(defaultEmail, "email"), defaultEmail);
+            else setPickerMode("email");
+          }}
+          onChangeWhatsApp={() => setPickerMode("whatsapp")}
+          onChangeEmail={() => setPickerMode("email")}
         />
+
+        {emailStatus && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {emailStatus}{" "}
+            {emailLink && (
+              <a
+                href={emailLink}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-primary hover:underline"
+              >
+                Open the hosted PDF link →
+              </a>
+            )}
+          </p>
+        )}
 
         {report && !hasAccess && !billingLoading && (
           <div className="mt-6">
@@ -218,12 +244,17 @@ function Dashboard() {
           onClose={() => setPickerMode(null)}
           contacts={contacts}
           mode={pickerMode ?? "whatsapp"}
-          defaultValue={pickerMode === "email" ? user?.email ?? "" : ""}
-          onPick={(value) => {
+          defaultValue={
+            pickerMode === "email"
+              ? defaultEmail?.email ?? user?.email ?? ""
+              : defaultWhatsApp?.whatsapp ?? ""
+          }
+          onPick={(value, contact) => {
             if (pickerMode === "whatsapp") sendWhatsApp(value);
-            else if (pickerMode === "email") sendEmail(value);
+            else if (pickerMode === "email") sendEmail(value, contact);
           }}
         />
+
 
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {role === "parent" && <ParentCards />}
