@@ -43,8 +43,14 @@ function Dashboard() {
   const [loadingReport, setLoadingReport] = useState(true);
   const { contacts } = useGuardianContacts(user?.id);
   const [pickerMode, setPickerMode] = useState<"whatsapp" | "email" | null>(null);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [emailLink, setEmailLink] = useState<string | null>(null);
+  const emailReport = useServerFn(emailReportLink);
+  const defaultWhatsApp = defaultContactFor(contacts, "whatsapp");
+  const defaultEmail = defaultContactFor(contacts, "email");
   const { billing, loading: billingLoading, refresh: refreshBilling } = useBilling();
   const hasAccess = !!billing?.hasAccess;
+
 
 
   useEffect(() => {
