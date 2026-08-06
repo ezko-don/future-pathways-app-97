@@ -91,31 +91,39 @@ function HistoryPage() {
     openWhatsAppShare(msg, phone || undefined);
   }
 
-  function sendEmail(a: Attempt, version: number, to: string) {
-    if (!to) return;
-    const subject = encodeURIComponent(`KaziFuture Career Report v${version} — ${a.top_cluster}`);
-    const body = encodeURIComponent(
-      [
-        `Hi,`,
-        ``,
-        `${profile?.full_name ?? "A KaziFuture learner"} — attempt v${version}.`,
-        ``,
-        `Top cluster: ${a.top_cluster}`,
-        ``,
-        a.summary,
-        ``,
-        `Pathways:`,
-        ...a.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track})`),
-        ``,
-        `Next steps:`,
-        ...a.next_steps.map((s) => `  • ${s}`),
-        ``,
-        `Full PDF downloaded from your KaziFuture dashboard.`,
-      ].join("\n"),
-    );
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    handleDownload(a, version);
+  async function sendEmail(
+    a: Attempt,
+    _version: number,
+    to: string,
+    contact?: GuardianContact,
+  ) {
+    if (!to || !user) return;
+    setEmailStatus({ id: a.id, message: `Preparing the report for ${to}…`, url: null });
+    try {
+      const pdfPath = await uploadReportPdf(user.id, a.id, {
+        ...a,
+        learner_name: profile?.full_name ?? undefined,
+      });
+      const res = await emailReport({
+        data: {
+          pdfPath,
+          quizResultId: a.id,
+          recipientEmail: to,
+          ...(contact?.label ? { recipientLabel: contact.label } : {}),
+          ...(profile?.full_name ? { learnerName: profile.full_name } : {}),
+          topCluster: a.top_cluster,
+        },
+      });
+      setEmailStatus({ id: a.id, message: res.message, url: res.sent ? null : res.pdfUrl });
+    } catch (err) {
+      setEmailStatus({
+        id: a.id,
+        message: err instanceof Error ? err.message : "Could not send the report by email.",
+        url: null,
+      });
+    }
   }
+
 
 
   return (
