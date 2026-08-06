@@ -238,10 +238,12 @@ function HistoryPage() {
                     <button
                       type="button"
                       onClick={() => handleDownload(a, version)}
+                      title={hasAccess ? undefined : "Unlock the full report to download the PDF"}
                       className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lift hover:opacity-95"
                     >
-                      ⬇ Download PDF
+                      {hasAccess ? "⬇ Download PDF" : "🔒 Unlock PDF"}
                     </button>
+
                   </div>
                 </div>
 
