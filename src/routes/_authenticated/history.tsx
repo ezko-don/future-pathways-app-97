@@ -42,6 +42,13 @@ function HistoryPage() {
   const [picker, setPicker] = useState<
     { mode: "whatsapp" | "email"; attempt: Attempt; version: number } | null
   >(null);
+  const [emailStatus, setEmailStatus] = useState<
+    { id: string; message: string; url: string | null } | null
+  >(null);
+  const emailReport = useServerFn(emailReportLink);
+  const defaultWhatsApp = defaultContactFor(contacts, "whatsapp");
+  const defaultEmail = defaultContactFor(contacts, "email");
+
 
 
   useEffect(() => {
