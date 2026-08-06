@@ -242,18 +242,51 @@ function HistoryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPicker({ mode: "whatsapp", attempt: a, version })}
+                      onClick={() =>
+                        defaultWhatsApp
+                          ? sendWhatsApp(a, contactValue(defaultWhatsApp, "whatsapp"))
+                          : setPicker({ mode: "whatsapp", attempt: a, version })
+                      }
                       className="rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-95"
                     >
-                      💬 WhatsApp
+                      💬 {defaultWhatsApp ? `WhatsApp ${defaultWhatsApp.label}` : "WhatsApp"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPicker({ mode: "email", attempt: a, version })}
+                      onClick={() =>
+                        defaultEmail
+                          ? sendEmail(a, version, contactValue(defaultEmail, "email"), defaultEmail)
+                          : setPicker({ mode: "email", attempt: a, version })
+                      }
                       className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-secondary"
                     >
-                      ✉ Email
+                      ✉ {defaultEmail ? `Email ${defaultEmail.label}` : "Email"}
                     </button>
+                    {(defaultWhatsApp || defaultEmail) && (
+                      <button
+                        type="button"
+                        onClick={() => setPicker({ mode: "email", attempt: a, version })}
+                        className="px-2 text-xs font-semibold text-muted-foreground hover:underline"
+                      >
+                        change recipient
+                      </button>
+                    )}
+                    {emailStatus?.id === a.id && (
+                      <span className="w-full text-xs text-muted-foreground">
+                        {emailStatus.message}{" "}
+                        {emailStatus.url && (
+                          <a
+                            href={emailStatus.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            Open hosted PDF →
+                          </a>
+                        )}
+                      </span>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => handleDownload(a, version)}
