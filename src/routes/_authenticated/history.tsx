@@ -362,12 +362,17 @@ function HistoryPage() {
         onClose={() => setPicker(null)}
         contacts={contacts}
         mode={picker?.mode ?? "whatsapp"}
-        defaultValue={picker?.mode === "email" ? user?.email ?? "" : ""}
-        onPick={(value) => {
+        defaultValue={
+          picker?.mode === "email"
+            ? defaultEmail?.email ?? user?.email ?? ""
+            : defaultWhatsApp?.whatsapp ?? ""
+        }
+        onPick={(value, contact) => {
           if (!picker) return;
           if (picker.mode === "whatsapp") sendWhatsApp(picker.attempt, value);
-          else sendEmail(picker.attempt, picker.version, value);
+          else sendEmail(picker.attempt, picker.version, value, contact);
         }}
+
       />
     </div>
   );
