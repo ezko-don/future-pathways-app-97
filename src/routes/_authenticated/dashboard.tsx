@@ -1,12 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
-import { useGuardianContacts } from "@/hooks/useGuardianContacts";
+import { useGuardianContacts, type GuardianContact } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
 import { MpesaPaywall, useBilling } from "@/components/MpesaPaywall";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
+import { uploadReportPdf, defaultContactFor, contactValue } from "@/lib/report-delivery";
+import { emailReportLink } from "@/lib/email-report.functions";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
+
 
 
 function confirmRetake(): boolean {
