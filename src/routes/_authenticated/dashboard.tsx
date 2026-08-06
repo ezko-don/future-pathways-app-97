@@ -182,10 +182,25 @@ function Dashboard() {
         <ReportPanel
           loading={loadingReport}
           report={report}
+          hasAccess={hasAccess}
+          billingLoading={billingLoading}
           onDownload={handleDownload}
           onWhatsApp={() => setPickerMode("whatsapp")}
           onEmail={() => setPickerMode("email")}
         />
+
+        {report && !hasAccess && !billingLoading && (
+          <div className="mt-6">
+            <MpesaPaywall quizResultId={report.id} onUnlocked={refreshBilling} />
+          </div>
+        )}
+
+        {hasAccess && billing?.latestPayment?.mpesa_receipt && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Cluster Report unlocked · M-Pesa receipt {billing.latestPayment.mpesa_receipt}
+          </p>
+        )}
+
 
         <GuardianPicker
           open={pickerMode !== null}
