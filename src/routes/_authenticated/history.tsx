@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
 import { useGuardianContacts } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
+import { useBilling } from "@/components/MpesaPaywall";
+
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
