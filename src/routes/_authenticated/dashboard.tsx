@@ -96,34 +96,34 @@ function Dashboard() {
     openWhatsAppShare(msg, phone || undefined);
   }
 
-  function sendEmail(to: string) {
-    if (!report || !to) return;
-    const subject = encodeURIComponent(`KaziFuture Career Report — ${report.top_cluster}`);
-    const lines = [
-      `Hi,`,
-      ``,
-      `${profile?.full_name ?? "A KaziFuture learner"} completed the AI Career Navigator quiz.`,
-      ``,
-      `Top cluster: ${report.top_cluster}`,
-      ``,
-      report.summary,
-      ``,
-      `Recommended CBC pathways:`,
-      ...report.pathways.map((p, i) => `  ${i + 1}. ${p.title} (${p.cbc_track}) — ${p.why_fit}`),
-      ``,
-      `Next steps:`,
-      ...report.next_steps.map((s) => `  • ${s}`),
-      ``,
-      `The full branded PDF can be downloaded from the KaziFuture dashboard.`,
-      `— KaziFuture`,
-    ].join("\n");
-    const body = encodeURIComponent(lines);
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-    downloadReportPdf(
-      { ...report, learner_name: profile?.full_name ?? undefined },
-      `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
-    );
+  async function sendEmail(to: string, contact?: GuardianContact) {
+    if (!report || !to || !user) return;
+    setEmailStatus(`Preparing the report for ${to}…`);
+    try {
+      const pdfPath = await uploadReportPdf(user.id, report.id, {
+        ...report,
+        learner_name: profile?.full_name ?? undefined,
+      });
+      const res = await emailReport({
+        data: {
+          pdfPath,
+          quizResultId: report.id,
+          recipientEmail: to,
+          ...(contact?.label ? { recipientLabel: contact.label } : {}),
+          ...(profile?.full_name ? { learnerName: profile.full_name } : {}),
+          topCluster: report.top_cluster,
+        },
+      });
+      setEmailStatus(res.message);
+      setEmailLink(res.sent ? null : res.pdfUrl);
+    } catch (err) {
+      setEmailStatus(
+        err instanceof Error ? err.message : "Could not send the report by email.",
+      );
+      setEmailLink(null);
+    }
   }
+
 
   const displayName = profile?.full_name || user?.email || "there";
 
