@@ -81,20 +81,24 @@ export const emailReportLink = createServerFn({ method: "POST" })
       };
     }
 
-    let sendTemplateEmail:
-      | ((
-          template: string,
-          to: string,
-          opts: { templateData?: Record<string, unknown>; idempotencyKey?: string },
-        ) => Promise<{ sent: boolean; reason?: string }>)
-      | null = null;
+    type SendFn = (
+      template: string,
+      to: string,
+      opts: { templateData?: Record<string, unknown>; idempotencyKey?: string },
+    ) => Promise<{ sent: boolean; reason?: string }>;
+
+    let sendTemplateEmail: SendFn | null = null;
     try {
-      const mod = await import("@/lib/email-templates/send-email");
-      sendTemplateEmail = (mod as unknown as { sendTemplateEmail: typeof sendTemplateEmail })
-        .sendTemplateEmail;
+      // Present only once app email templates have been scaffolded.
+      const specifier = "@/lib/email-templates/send-email";
+      const mod = (await import(/* @vite-ignore */ specifier)) as {
+        sendTemplateEmail?: SendFn;
+      };
+      sendTemplateEmail = mod.sendTemplateEmail ?? null;
     } catch {
       sendTemplateEmail = null;
     }
+
 
     if (!sendTemplateEmail) {
       return finish(
