@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { GuardianContact } from "@/hooks/useGuardianContacts";
 
@@ -13,11 +13,15 @@ interface Props {
 
 export function GuardianPicker({ open, onClose, contacts, mode, defaultValue, onPick }: Props) {
   const [manual, setManual] = useState(defaultValue ?? "");
+  useEffect(() => {
+    if (open) setManual(defaultValue ?? "");
+  }, [open, defaultValue]);
   if (!open) return null;
 
-  const usable = (contacts ?? []).filter((c) =>
-    mode === "whatsapp" ? !!c.whatsapp : !!c.email,
-  );
+  const usable = (contacts ?? [])
+    .filter((c) => (mode === "whatsapp" ? !!c.whatsapp : !!c.email))
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+
 
   return (
     <div
