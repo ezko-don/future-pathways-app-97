@@ -82,7 +82,8 @@ function Dashboard() {
   }
 
   function handleDownload() {
-    if (!report) return;
+    if (!report || !hasAccess) return;
+
     downloadReportPdf(
       { ...report, learner_name: profile?.full_name ?? undefined },
       `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
