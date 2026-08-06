@@ -70,11 +70,16 @@ function HistoryPage() {
   }
 
   function handleDownload(a: Attempt, version: number) {
+    if (!hasAccess) {
+      navigate({ to: "/dashboard" });
+      return;
+    }
     downloadReportPdf(
       { ...a, learner_name: profile?.full_name ?? undefined },
       `kazifuture-v${version}-${a.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
     );
   }
+
 
   function sendWhatsApp(a: Attempt, phone: string) {
     const msg = buildWhatsAppMessage(a, profile?.full_name ?? undefined);
