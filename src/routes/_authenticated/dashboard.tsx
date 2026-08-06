@@ -410,15 +410,34 @@ function ReportPanel({
             onClick={onWhatsApp}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
           >
-            💬 Share on WhatsApp
+            💬 {whatsappTarget ? `WhatsApp ${whatsappTarget.label}` : "Share on WhatsApp"}
           </button>
+          {whatsappTarget && (
+            <button
+              type="button"
+              onClick={onChangeWhatsApp}
+              className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
+            >
+              change
+            </button>
+          )}
           <button
             type="button"
             onClick={onEmail}
             className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-5 py-2 text-xs font-semibold hover:bg-secondary"
           >
-            ✉ Email this report
+            ✉ {emailTarget ? `Email ${emailTarget.label}` : "Email this report"}
           </button>
+          {emailTarget && (
+            <button
+              type="button"
+              onClick={onChangeEmail}
+              className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
+            >
+              change
+            </button>
+          )}
+
 
           <Link
             to="/compare"
