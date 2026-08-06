@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, useRole, useProfile } from "@/hooks/useAuth";
 import { useGuardianContacts } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
+import { MpesaPaywall, useBilling } from "@/components/MpesaPaywall";
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
+
 
 function confirmRetake(): boolean {
   return window.confirm(
@@ -37,6 +39,9 @@ function Dashboard() {
   const [loadingReport, setLoadingReport] = useState(true);
   const { contacts } = useGuardianContacts(user?.id);
   const [pickerMode, setPickerMode] = useState<"whatsapp" | "email" | null>(null);
+  const { billing, loading: billingLoading, refresh: refreshBilling } = useBilling();
+  const hasAccess = !!billing?.hasAccess;
+
 
   useEffect(() => {
     if (!user) return;
@@ -77,7 +82,8 @@ function Dashboard() {
   }
 
   function handleDownload() {
-    if (!report) return;
+    if (!report || !hasAccess) return;
+
     downloadReportPdf(
       { ...report, learner_name: profile?.full_name ?? undefined },
       `kazifuture-${report.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
@@ -177,10 +183,25 @@ function Dashboard() {
         <ReportPanel
           loading={loadingReport}
           report={report}
+          hasAccess={hasAccess}
+          billingLoading={billingLoading}
           onDownload={handleDownload}
           onWhatsApp={() => setPickerMode("whatsapp")}
           onEmail={() => setPickerMode("email")}
         />
+
+        {report && !hasAccess && !billingLoading && (
+          <div className="mt-6">
+            <MpesaPaywall quizResultId={report.id} onUnlocked={refreshBilling} />
+          </div>
+        )}
+
+        {hasAccess && billing?.latestPayment?.mpesa_receipt && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Cluster Report unlocked · M-Pesa receipt {billing.latestPayment.mpesa_receipt}
+          </p>
+        )}
+
 
         <GuardianPicker
           open={pickerMode !== null}
@@ -212,16 +233,21 @@ function Dashboard() {
 function ReportPanel({
   loading,
   report,
+  hasAccess,
+  billingLoading,
   onDownload,
   onWhatsApp,
   onEmail,
 }: {
   loading: boolean;
   report: StoredReport | null;
+  hasAccess: boolean;
+  billingLoading: boolean;
   onDownload: () => void;
   onWhatsApp: () => void;
   onEmail: () => void;
 }) {
+
   if (loading) {
     return (
       <div className="mt-8 h-40 animate-pulse rounded-3xl border border-border bg-card" />
@@ -270,23 +296,64 @@ function ReportPanel({
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Recommended pathways
             </p>
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-2 space-y-2 text-sm">
               {report.pathways.map((p) => (
                 <li key={p.title}>
                   <span className="font-semibold">{p.title}</span>{" "}
                   <span className="text-muted-foreground">— {p.cbc_track}</span>
+                  {hasAccess && (
+                    <>
+                      <span className="mt-0.5 block text-muted-foreground">{p.why_fit}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Careers: {p.kenyan_careers.join(", ")}
+                      </span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
+          {hasAccess ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Your strengths
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-foreground/80">
+                  {report.strengths.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Next steps
+                </p>
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-foreground/80">
+                  {report.next_steps.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          ) : (
+            !billingLoading && (
+              <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                🔒 Strengths, why each pathway fits, Kenyan career matches and the PDF
+                are part of the full Cluster Report.
+              </p>
+            )
+          )}
         </div>
         <div className="flex flex-col gap-2 md:w-52">
           <button
             type="button"
             onClick={onDownload}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95"
+            disabled={!hasAccess}
+            title={hasAccess ? undefined : "Unlock the full report to download the PDF"}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:opacity-95 disabled:opacity-50"
           >
-            ⬇ Download PDF
+            {hasAccess ? "⬇ Download PDF" : "🔒 Download PDF"}
           </button>
           <button
             type="button"
@@ -302,6 +369,7 @@ function ReportPanel({
           >
             ✉ Email this report
           </button>
+
           <Link
             to="/compare"
             className="inline-flex items-center justify-center rounded-full border border-transparent px-5 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"

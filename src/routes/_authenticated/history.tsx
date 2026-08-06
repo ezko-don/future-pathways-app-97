@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession, useProfile } from "@/hooks/useAuth";
 import { useGuardianContacts } from "@/hooks/useGuardianContacts";
 import { GuardianPicker } from "@/components/GuardianPicker";
+import { useBilling } from "@/components/MpesaPaywall";
+
 import { downloadReportPdf, type QuizReportData } from "@/lib/report-pdf";
 import { buildWhatsAppMessage, openWhatsAppShare } from "@/lib/share";
 
@@ -28,6 +30,9 @@ function HistoryPage() {
   const { user } = useSession();
   const profile = useProfile(user?.id);
   const { contacts } = useGuardianContacts(user?.id);
+  const { billing } = useBilling();
+  const hasAccess = !!billing?.hasAccess;
+
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [picker, setPicker] = useState<
@@ -70,11 +75,16 @@ function HistoryPage() {
   }
 
   function handleDownload(a: Attempt, version: number) {
+    if (!hasAccess) {
+      navigate({ to: "/dashboard" });
+      return;
+    }
     downloadReportPdf(
       { ...a, learner_name: profile?.full_name ?? undefined },
       `kazifuture-v${version}-${a.top_cluster.toLowerCase().replace(/\s+/g, "-")}.pdf`,
     );
   }
+
 
   function sendWhatsApp(a: Attempt, phone: string) {
     const msg = buildWhatsAppMessage(a, profile?.full_name ?? undefined);
@@ -228,10 +238,12 @@ function HistoryPage() {
                     <button
                       type="button"
                       onClick={() => handleDownload(a, version)}
+                      title={hasAccess ? undefined : "Unlock the full report to download the PDF"}
                       className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lift hover:opacity-95"
                     >
-                      ⬇ Download PDF
+                      {hasAccess ? "⬇ Download PDF" : "🔒 Unlock PDF"}
                     </button>
+
                   </div>
                 </div>
 
