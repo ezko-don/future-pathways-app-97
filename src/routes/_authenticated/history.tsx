@@ -28,6 +28,9 @@ function HistoryPage() {
   const { user } = useSession();
   const profile = useProfile(user?.id);
   const { contacts } = useGuardianContacts(user?.id);
+  const { billing } = useBilling();
+  const hasAccess = !!billing?.hasAccess;
+
   const [attempts, setAttempts] = useState<Attempt[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [picker, setPicker] = useState<
