@@ -276,18 +276,27 @@ function ReportPanel({
   report,
   hasAccess,
   billingLoading,
+  whatsappTarget,
+  emailTarget,
   onDownload,
   onWhatsApp,
   onEmail,
+  onChangeWhatsApp,
+  onChangeEmail,
 }: {
   loading: boolean;
   report: StoredReport | null;
   hasAccess: boolean;
   billingLoading: boolean;
+  whatsappTarget: GuardianContact | null;
+  emailTarget: GuardianContact | null;
   onDownload: () => void;
   onWhatsApp: () => void;
   onEmail: () => void;
+  onChangeWhatsApp: () => void;
+  onChangeEmail: () => void;
 }) {
+
 
   if (loading) {
     return (
