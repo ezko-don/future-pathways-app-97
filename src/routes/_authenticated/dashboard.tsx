@@ -232,16 +232,21 @@ function Dashboard() {
 function ReportPanel({
   loading,
   report,
+  hasAccess,
+  billingLoading,
   onDownload,
   onWhatsApp,
   onEmail,
 }: {
   loading: boolean;
   report: StoredReport | null;
+  hasAccess: boolean;
+  billingLoading: boolean;
   onDownload: () => void;
   onWhatsApp: () => void;
   onEmail: () => void;
 }) {
+
   if (loading) {
     return (
       <div className="mt-8 h-40 animate-pulse rounded-3xl border border-border bg-card" />
